@@ -8,24 +8,24 @@ builder.Services.AddRazorPages();
 builder.Services.Configure<JsonSerializerOptions>(o => o.PropertyNameCaseInsensitive = true);
 
 var app = builder.Build();
-var UserDb = new List<Users>();
+var UserDb = new List<User>();
 
 // Configure the HTTP request pipeline
 app.MapGet("/", () => "Hello world");
 
 // Register
-app.MapPost("/users", async (HttpContext ctx, [FromBody] UserRequestEnv<UserRequest> req) =>
+app.MapPost("/user", async (HttpContext ctx, [FromBody] UserRequestEnv<UserRequest> req) =>
 {
-    var resp = new Users(req.User.Username, req.User.Email, req.User.Password, $"{Guid.NewGuid()}", "", "");
+    var resp = new User(req.User.Username, req.User.Email, req.User.Password, $"{Guid.NewGuid()}", "", "");
     UserDb.Add(resp);
-    await ctx.Response.WriteAsJsonAsync(new UserRequestEnv<Users>(resp));
+    await ctx.Response.WriteAsJsonAsync(new UserRequestEnv<User>(resp));
 });
 
 //Get Current User
 app.MapGet("/user", (HttpRequest req) =>
 {
     var user = UserDb.FirstOrDefault(x => x.Token == req.Headers["Authorization"]);
-    return new UserRequestEnv<Users>(user);
+    return new UserRequestEnv<User>(user);
 });
 
 // Update User Data
@@ -64,12 +64,12 @@ app.MapPut("/user", async (ctx) =>
     }
 
     UserDb.Remove(user);
-    var resp = new Users(OldUser.Username, OldUser.Email, OldUser.Password, $"{ctx.Request.Headers["Authorization"]}", "", "");
+    var resp = new User(OldUser.Username, OldUser.Email, OldUser.Password, $"{ctx.Request.Headers["Authorization"]}", "", "");
     UserDb.Add(resp);
-    await ctx.Response.WriteAsJsonAsync(new UserRequestEnv<Users>(resp));
+    await ctx.Response.WriteAsJsonAsync(new UserRequestEnv<User>(resp));
 });
 
-app.MapPost("/users/login", (HttpContext ctx, [FromBody] UserRequestEnv<UserRequest> req) =>
+app.MapPost("/User/login", (HttpContext ctx, [FromBody] UserRequestEnv<UserRequest> req) =>
 {
     if(req.User.Username != "" && req.User.Password != "")
     {
@@ -77,17 +77,16 @@ app.MapPost("/users/login", (HttpContext ctx, [FromBody] UserRequestEnv<UserRequ
         if(user.Password == req.User.Password)
         {
             //user.Token = Guid.NewGuid();
-            var userWithNewToken = new Users(user.UserName, user.Email, user.Password, Guid.NewGuid().ToString(), "", "");
+            var userWithNewToken = new User(user.UserName, user.Email, user.Password, Guid.NewGuid().ToString(), "", "");
             UserDb.Remove(user);
             UserDb.Add(userWithNewToken);
 
-            return new UserRequestEnv<Users>(userWithNewToken);
+            return new UserRequestEnv<User>(userWithNewToken);
         }
     }
-    var EmptyUser = new Users("", "", "", "", "", "");
-    return new UserRequestEnv<Users>(EmptyUser);
+    var EmptyUser = new User("", "", "", "", "", "");
+    return new UserRequestEnv<User>(EmptyUser);
 });
-
 
 app.Run();
 
@@ -106,7 +105,7 @@ public class OldUser
         Password = password;
     }
 
-    public OldUser(Users user)
+    public OldUser(User user)
     {
         this.Username = user.UserName;
         this.Password = user.Password;
@@ -121,5 +120,5 @@ public record UserRequest(string Username, string Email, string Password);
 
 public record UserRequestEnv<T>(T User);
 
-public record Users(string? UserName, string? Email, string? Password, string? Token,
+public record User(string? UserName, string? Email, string? Password, string? Token,
     string? Bio, string? Image);
