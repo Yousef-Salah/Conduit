@@ -10,6 +10,13 @@ builder.Services.Configure<JsonSerializerOptions>(o => o.PropertyNameCaseInsensi
 var app = builder.Build();
 var UserDb = new List<User>();
 
+User GetUserByToken(string Token, List<User> Users)
+{
+    var user = Users.FirstOrDefault(user => user.Token == Token);
+
+    return user;
+}
+
 // Configure the HTTP request pipeline
 app.MapGet("/", () => "Hello world");
 
@@ -24,7 +31,7 @@ app.MapPost("/user", async (HttpContext ctx, [FromBody] UserRequestEnv<UserReque
 //Get Current User
 app.MapGet("/user", (HttpRequest req) =>
 {
-    var user = UserDb.FirstOrDefault(x => x.Token == req.Headers["Authorization"]);
+    var user = GetUserByToken(req.Headers["Authorization"], UserDb);
     return new UserRequestEnv<User>(user);
 });
 
@@ -39,7 +46,7 @@ app.MapPut("/user", async (ctx) =>
     }
 
     var req = JsonSerializer.Deserialize<UserRequestEnv<UserRequest>>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-    var user = UserDb.FirstOrDefault(x => x.Token == ctx.Request.Headers["Authorization"]);
+    var user = GetUserByToken(ctx.Request.Headers["Authorization"], UserDb);
     
     OldUser OldUser = new OldUser(user);
 
@@ -85,8 +92,8 @@ app.MapPost("/User/login", (HttpContext ctx, [FromBody] UserRequestEnv<UserReque
             return new UserRequestEnv<User>(userWithNewToken);
         }
     }
-    var EmptyUser = new User("", "", "", "", "", "", new List<User>());
-    return new UserRequestEnv<User>(EmptyUser);
+    // return new Empty User
+    return new UserRequestEnv<User>(new User("", "", "", "", "", "", new List<User>()));
 });
 
 #region Follow
@@ -103,7 +110,7 @@ app.MapPost("/profiles/{profileName}/follow", async (HttpContext ctx, string pro
 {
     var profile = UserDb.FirstOrDefault(user => user.UserName == profileName);
 
-    var user = UserDb.FirstOrDefault(user => user.Token == ctx.Request.Headers["Authorization"]);
+    var user = GetUserByToken(ctx.Request.Headers["Authorization"], UserDb); ;
 
     user.Follow.Add(profile);
 
@@ -114,13 +121,12 @@ app.MapDelete("/profiles/{PROFILENAME}/follow", (HttpContext ctx, string profile
 {
     var profile = UserDb.FirstOrDefault(user => user.UserName == profileName);
 
-    var user = UserDb.FirstOrDefault(user => user.Token == ctx.Request.Headers["Authorization"]);
+    var user = GetUserByToken(ctx.Request.Headers["Authorization"], UserDb); ;
 
     user.Follow.Remove(profile);
 
     return ctx.Response.WriteAsJsonAsync(new ProfileRequestEnv<User>(profile));
 });
-
 
 #endregion
 app.Run();
