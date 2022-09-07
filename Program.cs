@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.Configure<JsonSerializerOptions>(o => o.PropertyNameCaseInsensitive = true);
+builder.Services.AddControllers();
 
 var app = builder.Build();
 var UserDb = new List<User>();
@@ -26,82 +27,6 @@ User GetUserByToken(string Token, List<User> Users)
 
 // Configure the HTTP request pipeline
 app.MapGet("/", () => "Hello world");
-
-// Register
-app.MapPost("/user", async (HttpContext ctx, [FromBody] UserRequestEnv<UserRequest> req) =>
-{
-    var resp = new User(req.User.Username, req.User.Email, req.User.Password, $"{Guid.NewGuid()}", "", "", new List<User>());
-    UserDb.Add(resp);
-    await ctx.Response.WriteAsJsonAsync(new UserRequestEnv<User>(resp));
-});
-
-//Get Current User
-app.MapGet("/user", (HttpRequest req) =>
-{
-    var user = GetUserByToken(req.Headers["Authorization"], UserDb);
-    return new UserRequestEnv<User>(user);
-});
-
-// Update User Data
-app.MapPut("/user", async (ctx) =>
-{
-    var body = "";
-
-    using (var reader = new StreamReader(ctx.Request.Body))
-    {
-        body = await reader.ReadToEndAsync();
-    }
-
-    var req = JsonSerializer.Deserialize<UserRequestEnv<UserRequest>>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-    var user = GetUserByToken(ctx.Request.Headers["Authorization"], UserDb);
-    
-    OldUser OldUser = new OldUser(user);
-
-    if (req.User.Username != "")
-    {
-        OldUser.Username = req.User.Username;
-    }
-
-    if (req.User.Email != "")
-    {
-        OldUser.Email = req.User.Email;
-    }
-
-    if (req.User.Password != "")
-    {
-        OldUser.Password = req.User.Password;
-    }
-
-    if (req.User.Email != "")
-    {
-        OldUser.Email = req.User.Email;
-    }
-    
-    UserDb.Remove(user);
-    var resp = new User(OldUser.Username, OldUser.Email, OldUser.Password, $"{ctx.Request.Headers["Authorization"]}", "", "", OldUser.follow);
-    UserDb.Add(resp);
-    await ctx.Response.WriteAsJsonAsync(new UserRequestEnv<User>(resp));
-});
-
-//Login
-app.MapPost("/User/login", (HttpContext ctx, [FromBody] UserRequestEnv<UserRequest> req) =>
-{
-    if(req.User.Username != "" && req.User.Password != "")
-    {
-        var user = UserDb.FirstOrDefault(x => x.Email == req.User.Email);
-        if(user.Password == req.User.Password)
-        {
-            //user.Token = Guid.NewGuid();
-            var userWithNewToken = new User(user.UserName, user.Email, user.Password, Guid.NewGuid().ToString(), "", "", user.Follow);
-            UserDb.Remove(user);
-            UserDb.Add(userWithNewToken);
-
-            return new UserRequestEnv<User>(userWithNewToken);
-        }
-    }
-    // return new Empty User
-    return new UserRequestEnv<User>(new User("", "", "", "", "", "", new List<User>()));
-});
 
 #region Follow
 // Profile
@@ -178,6 +103,7 @@ app.MapDelete("/tags", (HttpContext ctx, [FromBody] TagRequestEnv<Tag> req) =>
 
 
 #endregion
+app.MapControllers();
 app.Run();
 
 
