@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Conduit.Validators;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
@@ -81,7 +82,11 @@ namespace Conduit
         [Route("/MVC/user/login")]
         public ActionResult LogIn([FromBody] UserRequestEnv<UserRequest> req)
         {
-            if (req.User.Username != "" && req.User.Password != "")
+
+            var validator = new UserRequestValidator();
+            var result = validator.Validate(req.User); 
+            
+            if(result.IsValid)
             {
                 var user = UserDb.FirstOrDefault(x => x.Email == req.User.Email);
                 if (user.Password == req.User.Password)
@@ -93,9 +98,11 @@ namespace Conduit
 
                     return new JsonResult(new UserRequestEnv<User>(userWithNewToken));
                 }
+                else return BadRequest(new UserRequestEnv<string>("Invalid Password!!"));
             }
+
             // return new Empty User
-            return new JsonResult(new UserRequestEnv<User>(new User("", "", "", "", "", "", new List<User>())));
+            return BadRequest(result.Errors);
         }
 
         private User GetUserByToken(string Token, List<User> Users)
